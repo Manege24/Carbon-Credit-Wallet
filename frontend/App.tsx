@@ -6,6 +6,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import PlotsScreen from "./src/screens/PlotsScreen";
 import { getToken, clearToken } from "./src/storage/tokenStore";
 import BalanceScreen from "./src/screens/BalanceScreen";
+import HistoryScreen from "./src/screens/HistoryScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -43,6 +44,7 @@ export default function App() {
       <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Plots" component={PlotsScreen} />
         <Tab.Screen name="Balance" component={BalanceScreen} />
+        <Tab.Screen name="History" component={HistoryScreen} />
         <Tab.Screen name="Account" component={AccountScreen} />
       </Tab.Navigator>
     </NavigationContainer>
