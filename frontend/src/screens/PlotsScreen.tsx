@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
 import * as Location from "expo-location";
 import { createPlot } from "../api/plots";
+import BatchForm from "./BatchForm";
 
 export default function PlotsScreen() {
   const [lat, setLat] = useState<number | null>(null);
@@ -10,6 +11,7 @@ export default function PlotsScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [plotId, setPlotId] = useState<string | null>(null);
 
   async function getLocation() {
     setMessage(null);
@@ -49,7 +51,8 @@ export default function PlotsScreen() {
         radius_m: Number(radius),
       });
       setIsError(false);
-      setMessage("Plot saved. " + JSON.stringify(plot));
+      setPlotId(plot.plot_id ? String(plot.plot_id) : null);
+      setMessage(plot.plot_id ? "Plot saved. Now add your trees below." : "Plot saved, but no plot_id came back: " + JSON.stringify(plot));
     } catch (e: any) {
       setIsError(true);
       setMessage(
@@ -86,6 +89,7 @@ export default function PlotsScreen() {
       </Pressable>
 
       {message && <Text style={isError ? styles.error : styles.ok}>{message}</Text>}
+      {plotId && <BatchForm plotId={plotId} />}
     </ScrollView>
   );
 }
