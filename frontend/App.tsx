@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LoginScreen from "./src/screens/LoginScreen";
 import PlotsScreen from "./src/screens/PlotsScreen";
 import { getToken, clearToken } from "./src/storage/tokenStore";
+import BalanceScreen from "./src/screens/BalanceScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -41,6 +42,7 @@ export default function App() {
     <NavigationContainer>
       <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Plots" component={PlotsScreen} />
+        <Tab.Screen name="Balance" component={BalanceScreen} />
         <Tab.Screen name="Account" component={AccountScreen} />
       </Tab.Navigator>
     </NavigationContainer>
