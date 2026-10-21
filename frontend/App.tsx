@@ -13,6 +13,7 @@ import { syncAll } from "./src/api/sync";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./src/theme";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import RegisterScreen from "./src/screens/RegisterScreen";
 
 const Tab = createBottomTabNavigator();
 function Tabs({ onLogout }: { onLogout: () => void }) {
@@ -49,9 +50,11 @@ function Tabs({ onLogout }: { onLogout: () => void }) {
     </Tab.Navigator>
   );
 }
-export default function App() {
+function AppContent() {
   const [checking, setChecking] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     getToken().then((token) => {
@@ -77,17 +80,39 @@ export default function App() {
     return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator /></View>;
   }
 
-  if (!loggedIn) {
-    return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;
+    if (!loggedIn) {
+    if (registering) {
+      return (
+        <RegisterScreen
+          onBack={() => setRegistering(false)}
+          onDone={() => {
+            setNotice("Account created. Please log in.");
+            setRegistering(false);
+          }}
+        />
+      );
+    }
+    return (
+      <LoginScreen
+        notice={notice}
+        onRegister={() => { setNotice(null); setRegistering(true); }}
+        onLoginSuccess={() => setLoggedIn(true)}
+      />
+    );
   }
 
   
 
     return (
-    <SafeAreaProvider>
-      <NavigationContainer>
+    <NavigationContainer>
         <Tabs onLogout={() => setLoggedIn(false)} />
-      </NavigationContainer>
+    </NavigationContainer>   
+  );
+}
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
     </SafeAreaProvider>
   );
 }

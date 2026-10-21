@@ -8,9 +8,9 @@ import { login } from "../api/auth";
 import { saveToken } from "../storage/tokenStore";
 import { colors, spacing, radius, shadow } from "../theme";
 
-type Props = { onLoginSuccess: (role?: string) => void };
+type Props = { onLoginSuccess: (role?: string) => void; onRegister: () => void; notice?: string | null };
 
-export default function LoginScreen({ onLoginSuccess }: Props) {
+export default function LoginScreen({ onLoginSuccess, onRegister, notice }: Props) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -85,6 +85,13 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
             </Pressable>
           </View>
 
+          {notice && (
+            <View style={[styles.errorBox, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.success} />
+              <Text style={[styles.errorText, { color: colors.success }]}>{notice}</Text>
+            </View>
+          )}
+
           {error && (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
@@ -98,6 +105,9 @@ export default function LoginScreen({ onLoginSuccess }: Props) {
             disabled={disabled}
           >
             {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Log in</Text>}
+          </Pressable>
+          <Pressable onPress={onRegister} style={{ marginTop: spacing.md, alignItems: "center" }}>
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>New farmer? Create an account</Text>
           </Pressable>
         </View>
       </ScrollView>
