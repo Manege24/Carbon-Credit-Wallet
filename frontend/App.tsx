@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator } from "react-native";
+import AccountScreen from "./src/screens/AccountScreen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LoginScreen from "./src/screens/LoginScreen";
 import PlotsScreen from "./src/screens/PlotsScreen";
-import { getToken, clearToken } from "./src/storage/tokenStore";
+import { getToken } from "./src/storage/tokenStore";
 import BalanceScreen from "./src/screens/BalanceScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import NetInfo from "@react-native-community/netinfo";
@@ -44,15 +45,7 @@ export default function App() {
     return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;
   }
 
-  function AccountScreen() {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Pressable onPress={async () => { await clearToken(); setLoggedIn(false); }}>
-          <Text style={{ color: "#c62828", fontSize: 18 }}>Log out</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  
 
   return (
     <NavigationContainer>
@@ -60,7 +53,9 @@ export default function App() {
         <Tab.Screen name="Plots" component={PlotsScreen} />
         <Tab.Screen name="Balance" component={BalanceScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
-        <Tab.Screen name="Account" component={AccountScreen} />
+        <Tab.Screen name="Account">
+          {() => <AccountScreen onLogout={() => setLoggedIn(false)} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
