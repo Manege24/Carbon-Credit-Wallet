@@ -1,19 +1,36 @@
-import { useState } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
+import { useCallback, useState } from "react";
+import {
+  View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, ScrollView,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import BatchForm from "./BatchForm";
 import * as Crypto from "expo-crypto";
-import { savePlotLocally } from "../storage/localDb";
+import BatchForm from "./BatchForm";
+import { savePlotLocally, countPending } from "../storage/localDb";
 import { syncAll } from "../api/sync";
+import { colors, spacing, radius, shadow } from "../theme";
 
 export default function PlotsScreen() {
+  const insets = useSafeAreaInsets();
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
-  const [radius, setRadius] = useState("50");
+  const [radiusText, setRadiusText] = useState("50");
+  const [plotId, setPlotId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
-  const [plotId, setPlotId] = useState<string | null>(null);
+  const [pending, setPending] = useState(0);
+
+    useFocusEffect(
+    useCallback(() => {
+      const refresh = () => countPending().then(setPending).catch(() => {});
+      refresh();
+      const timer = setInterval(refresh, 5000);
+      return () => clearInterval(timer);
+    }, [])
+  );
 
   async function getLocation() {
     setMessage(null);
@@ -38,7 +55,7 @@ export default function PlotsScreen() {
 
   async function save() {
     if (lat === null || lng === null) return;
-    const r = Number(radius);
+    const r = Number(radiusText);
     if (!(r > 0 && r <= 2000)) {
       setIsError(true);
       setMessage("Radius must be more than 0 and at most 2000 metres.");
@@ -58,6 +75,7 @@ export default function PlotsScreen() {
       } catch {
         setMessage("Plot saved on your phone. It will upload when you are online. Add your trees below.");
       }
+      setPending(await countPending());
     } catch (e: any) {
       setIsError(true);
       setMessage(e?.message ?? "Something went wrong");
@@ -66,45 +84,96 @@ export default function PlotsScreen() {
     }
   }
 
+  const canSave = !busy && lat !== null && !!radiusText;
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Register a plot</Text>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+        <Text style={styles.title}>Register a plot</Text>
+        <Text style={styles.sub}>Stand in your plot and capture its location.</Text>
+        {pending > 0 && (
+          <View style={styles.badge}>
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.accent} />
+            <Text style={styles.badgeText}>{pending} waiting to upload</Text>
+          </View>
+        )}
+      </View>
 
-      <Pressable style={styles.secondary} onPress={getLocation} disabled={busy}>
-        <Text style={styles.secondaryText}>Use my current location</Text>
-      </Pressable>
-
-      <Text style={styles.coords}>
-        {lat === null ? "No location yet" : `Lat ${lat.toFixed(6)}, Lng ${lng!.toFixed(6)}`}
-      </Text>
-
-      <Text style={styles.label}>Plot radius (metres)</Text>
-      <TextInput style={styles.input} keyboardType="numeric" value={radius} onChangeText={setRadius} />
-
-      <Pressable
-        style={[styles.button, (busy || lat === null || !radius) && { opacity: 0.5 }]}
-        onPress={save}
-        disabled={busy || lat === null || !radius}
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
       >
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save plot</Text>}
-      </Pressable>
+        <View style={styles.card}>
+          <Pressable style={styles.secondary} onPress={getLocation} disabled={busy}>
+            <Ionicons name="locate" size={20} color={colors.primary} />
+            <Text style={styles.secondaryText}>Use my current location</Text>
+          </Pressable>
 
-      {message && <Text style={isError ? styles.error : styles.ok}>{message}</Text>}
-      {plotId && <BatchForm plotId={plotId} />}
-    </ScrollView>
+          <View style={styles.coordsRow}>
+            <Ionicons name="location-outline" size={18} color={colors.muted} />
+            <Text style={styles.coords}>
+              {lat === null ? "No location yet" : `${lat.toFixed(6)}, ${lng!.toFixed(6)}`}
+            </Text>
+          </View>
+
+          <Text style={styles.label}>Plot radius (metres)</Text>
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            value={radiusText}
+            onChangeText={setRadiusText}
+          />
+
+          <Pressable style={[styles.button, !canSave && { opacity: 0.5 }]} onPress={save} disabled={!canSave}>
+            {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.buttonText}>Save plot</Text>}
+          </Pressable>
+
+          {message && (
+            <View style={[styles.msgBox, isError ? styles.msgError : styles.msgOk]}>
+              <Ionicons
+                name={isError ? "alert-circle-outline" : "checkmark-circle-outline"}
+                size={18}
+                color={isError ? colors.error : colors.success}
+              />
+              <Text style={{ flex: 1, color: isError ? colors.error : colors.success }}>{message}</Text>
+            </View>
+          )}
+        </View>
+
+        {plotId && <BatchForm plotId={plotId} onSaved={() => countPending().then(setPending)} />}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingTop: 60 },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 20 },
-  label: { marginTop: 16, marginBottom: 6, fontWeight: "600" },
-  coords: { marginTop: 12, color: "#444" },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, fontSize: 16 },
-  button: { backgroundColor: "#2e7d32", padding: 14, borderRadius: 8, alignItems: "center", marginTop: 24 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  secondary: { borderWidth: 1, borderColor: "#2e7d32", padding: 14, borderRadius: 8, alignItems: "center" },
-  secondaryText: { color: "#2e7d32", fontSize: 16, fontWeight: "600" },
-  error: { color: "#c62828", marginTop: 16 },
-  ok: { color: "#2e7d32", marginTop: 16 },
+  title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
+  sub: { color: colors.muted, marginTop: spacing.xs },
+  badge: {
+    flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
+    backgroundColor: "#F3E3D3", paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 20, marginTop: spacing.sm,
+  },
+  badgeText: { color: colors.accent, fontWeight: "600" },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, ...shadow },
+  secondary: {
+    flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center",
+    borderWidth: 1.5, borderColor: colors.primary, paddingVertical: 14, borderRadius: radius.md,
+  },
+  secondaryText: { color: colors.primary, fontSize: 16, fontWeight: "700" },
+  coordsRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.md },
+  coords: { color: colors.text },
+  label: { marginTop: spacing.md, marginBottom: spacing.sm, fontWeight: "600", color: colors.text },
+  input: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    padding: 14, fontSize: 16, backgroundColor: colors.white, color: colors.text,
+  },
+  button: {
+    backgroundColor: colors.primary, paddingVertical: 15, borderRadius: radius.md,
+    alignItems: "center", marginTop: spacing.lg,
+  },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  msgBox: { flexDirection: "row", gap: 8, alignItems: "center", padding: 12, borderRadius: radius.sm, marginTop: spacing.md },
+  msgError: { backgroundColor: "#F8E5DF" },
+  msgOk: { backgroundColor: colors.primarySoft },
 });

@@ -46,3 +46,9 @@ export async function saveBatchLocally(b: {
     [b.plot_id, b.tree_count, b.species_type, b.date_planted]
   );
 }
+export async function countPending(): Promise<number> {
+  const db = await getDb();
+  const p = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM local_plots WHERE synced = 0");
+  const b = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM local_batches WHERE synced = 0");
+  return (p?.n ?? 0) + (b?.n ?? 0);
+}
