@@ -10,6 +10,8 @@ import BalanceScreen from "./src/screens/BalanceScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import NetInfo from "@react-native-community/netinfo";
 import { syncAll } from "./src/api/sync";
+import { Ionicons } from "@expo/vector-icons";
+import { colors } from "./src/theme";
 
 const Tab = createBottomTabNavigator();
 
@@ -49,7 +51,24 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Tab.Navigator screenOptions={{ headerShown: false }}>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.muted,
+          tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, height: 64, paddingBottom: 8, paddingTop: 6 },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+          tabBarIcon: ({ color, size }) => {
+            const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+              Plots: "map-outline",
+              Balance: "wallet-outline",
+              History: "pulse-outline",
+              Account: "person-outline",
+            };
+            return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
+          },
+        })}
+      >
         <Tab.Screen name="Plots" component={PlotsScreen} />
         <Tab.Screen name="Balance" component={BalanceScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
