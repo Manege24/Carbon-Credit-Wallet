@@ -20,8 +20,14 @@ def register_farmer(payload: FarmerRegisterRequest, db: Session = Depends(get_db
     existing = db.execute(select(Farmer).where(Farmer.phone_number == payload.phone_number)).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone number already registered")
-    farmer = Farmer(farmer_id=uuid.uuid4(), full_name=payload.full_name, phone_number=payload.phone_number,
-                     county=payload.county, device_id=payload.device_id)
+    farmer = Farmer(
+        farmer_id=uuid.uuid4(),
+        full_name=payload.full_name,
+        phone_number=payload.phone_number,
+        county=payload.county,
+        device_id=payload.device_id,
+        password_hash=hash_password(payload.password),
+    )
     db.add(farmer)
     db.commit()
     db.refresh(farmer)
@@ -32,6 +38,8 @@ def register_farmer(payload: FarmerRegisterRequest, db: Session = Depends(get_db
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     farmer = db.execute(select(Farmer).where(Farmer.phone_number == form_data.username)).scalar_one_or_none()
     if farmer:
+        if not farmer.password_hash or not verify_password(form_data.password, farmer.password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         if farmer.account_status != AccountStatus.active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is not active")
         token = create_access_token(subject=str(farmer.farmer_id), role="FARMER")

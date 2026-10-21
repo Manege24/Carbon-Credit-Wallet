@@ -17,6 +17,7 @@ class Farmer(Base):
     phone_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
     county: Mapped[str] = mapped_column(String(100), nullable=False)
     device_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=True)
     account_status: Mapped[AccountStatus] = mapped_column(
         SAEnum(AccountStatus, name="account_status"), default=AccountStatus.active, nullable=False
     )

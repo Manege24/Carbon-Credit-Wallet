@@ -1,0 +1,62 @@
+import { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
+import AccountScreen from "./src/screens/AccountScreen";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import LoginScreen from "./src/screens/LoginScreen";
+import PlotsScreen from "./src/screens/PlotsScreen";
+import { getToken } from "./src/storage/tokenStore";
+import BalanceScreen from "./src/screens/BalanceScreen";
+import HistoryScreen from "./src/screens/HistoryScreen";
+import NetInfo from "@react-native-community/netinfo";
+import { syncAll } from "./src/api/sync";
+
+const Tab = createBottomTabNavigator();
+
+export default function App() {
+  const [checking, setChecking] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    getToken().then((token) => {
+      setLoggedIn(!!token);
+      setChecking(false);
+    });
+  }, []);
+  useEffect(() => {
+    if (!loggedIn) return;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) syncAll().catch(() => {});
+    });
+    const timer = setInterval(() => {
+      syncAll().catch(() => {});
+    }, 15000);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, [loggedIn]);
+
+  if (checking) {
+    return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator /></View>;
+  }
+
+  if (!loggedIn) {
+    return <LoginScreen onLoginSuccess={() => setLoggedIn(true)} />;
+  }
+
+  
+
+  return (
+    <NavigationContainer>
+      <Tab.Navigator screenOptions={{ headerShown: false }}>
+        <Tab.Screen name="Plots" component={PlotsScreen} />
+        <Tab.Screen name="Balance" component={BalanceScreen} />
+        <Tab.Screen name="History" component={HistoryScreen} />
+        <Tab.Screen name="Account">
+          {() => <AccountScreen onLogout={() => setLoggedIn(false)} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
