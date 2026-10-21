@@ -12,9 +12,43 @@ import NetInfo from "@react-native-community/netinfo";
 import { syncAll } from "./src/api/sync";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./src/theme";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator();
-
+function Tabs({ onLogout }: { onLogout: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 58 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+        tabBarIcon: ({ color, size }) => {
+          const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+            Plots: "map-outline",
+            Balance: "wallet-outline",
+            History: "pulse-outline",
+            Account: "person-outline",
+          };
+          return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Plots" component={PlotsScreen} />
+      <Tab.Screen name="Balance" component={BalanceScreen} />
+      <Tab.Screen name="History" component={HistoryScreen} />
+      <Tab.Screen name="Account">{() => <AccountScreen onLogout={onLogout} />}</Tab.Screen>
+    </Tab.Navigator>
+  );
+}
 export default function App() {
   const [checking, setChecking] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -49,33 +83,11 @@ export default function App() {
 
   
 
-  return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, height: 64, paddingBottom: 8, paddingTop: 6 },
-          tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
-          tabBarIcon: ({ color, size }) => {
-            const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-              Plots: "map-outline",
-              Balance: "wallet-outline",
-              History: "pulse-outline",
-              Account: "person-outline",
-            };
-            return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Plots" component={PlotsScreen} />
-        <Tab.Screen name="Balance" component={BalanceScreen} />
-        <Tab.Screen name="History" component={HistoryScreen} />
-        <Tab.Screen name="Account">
-          {() => <AccountScreen onLogout={() => setLoggedIn(false)} />}
-        </Tab.Screen>
-      </Tab.Navigator>
-    </NavigationContainer>
+    return (
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Tabs onLogout={() => setLoggedIn(false)} />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
