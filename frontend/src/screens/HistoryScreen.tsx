@@ -3,6 +3,9 @@ import { View, Text, Pressable, ActivityIndicator, ScrollView, StyleSheet } from
 import { useFocusEffect } from "@react-navigation/native";
 import { getFarmerId } from "../auth/jwt";
 import { fetchHistory, ScanItem } from "../api/history";
+import { Ionicons } from "@expo/vector-icons";
+import { colors, spacing, radius, shadow } from "../theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Group = { plotId: string; scans: ScanItem[] };
 
@@ -48,25 +51,52 @@ export default function HistoryScreen() {
     }, [load])
   );
 
+  function barColor(v: number) {
+    if (v >= 0.6) return colors.success;
+    if (v >= 0.4) return colors.accent;
+    return colors.error;
+  }
+  const insets = useSafeAreaInsets();
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Satellite checks</Text>
-      <Text style={styles.sub}>NDVI measures how green your trees look from space. Higher is healthier.</Text>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+        <Text style={styles.title}>Satellite checks</Text>
+        <Text style={styles.sub}>NDVI shows how green your trees look from space. Higher is healthier.</Text>
+      </View>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
 
-      {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {loading && groups.length === 0 && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {!loading && !error && groups.length === 0 && (
-        <Text style={styles.empty}>No satellite checks yet.</Text>
+        <View style={styles.empty}>
+          <Ionicons name="planet-outline" size={40} color={colors.muted} />
+          <Text style={styles.emptyText}>No satellite checks yet.</Text>
+        </View>
       )}
 
       {groups.map((g) => (
         <View key={g.plotId} style={styles.card}>
-          <Text style={styles.plot}>Plot ...{g.plotId.slice(-4)}</Text>
+          <View style={styles.cardHeader}>
+            <Ionicons name="location" size={18} color={colors.primary} />
+            <Text style={styles.plot}>Plot ...{g.plotId.slice(-4)}</Text>
+          </View>
           {g.scans.map((s) => (
             <View key={s.scan_date} style={styles.row}>
               <Text style={styles.date}>{s.scan_date}</Text>
               <View style={styles.barBg}>
-                <View style={[styles.bar, { width: `${Math.max(0, Math.min(1, s.ndvi_value)) * 100}%` }]} />
+                <View
+                  style={[
+                    styles.bar,
+                    { width: `${Math.max(0, Math.min(1, s.ndvi_value)) * 100}%`, backgroundColor: barColor(s.ndvi_value) },
+                  ]}
+                />
               </View>
               <Text style={styles.value}>{s.ndvi_value.toFixed(2)}</Text>
             </View>
@@ -74,26 +104,37 @@ export default function HistoryScreen() {
         </View>
       ))}
 
-      <Pressable style={styles.button} onPress={load} disabled={loading}>
+      <Pressable style={[styles.button, loading && { opacity: 0.6 }]} onPress={load} disabled={loading}>
+        <Ionicons name="refresh" size={18} color={colors.white} />
         <Text style={styles.buttonText}>Refresh</Text>
       </Pressable>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingTop: 60 },
-  title: { fontSize: 22, fontWeight: "700" },
-  sub: { color: "#555", marginTop: 6, marginBottom: 12 },
-  empty: { color: "#555", marginTop: 20 },
-  card: { backgroundColor: "#f1f8e9", borderRadius: 12, padding: 16, marginTop: 16 },
-  plot: { fontWeight: "700", marginBottom: 8, color: "#1b5e20" },
-  row: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  date: { width: 90, color: "#333" },
-  barBg: { flex: 1, height: 10, backgroundColor: "#dcedc8", borderRadius: 5, marginHorizontal: 8 },
-  bar: { height: 10, backgroundColor: "#2e7d32", borderRadius: 5 },
-  value: { width: 40, textAlign: "right", fontWeight: "600" },
-  error: { color: "#c62828", marginTop: 16 },
-  button: { backgroundColor: "#2e7d32", padding: 14, borderRadius: 8, alignItems: "center", marginTop: 24 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  container: { padding: spacing.lg, paddingTop: 72, paddingBottom: spacing.xl },
+  title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
+  sub: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.md },
+  empty: { alignItems: "center", marginTop: spacing.xl, gap: spacing.sm },
+  emptyText: { color: colors.muted },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md, ...shadow },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.xs },
+  plot: { fontWeight: "700", color: colors.primaryDark },
+  row: { flexDirection: "row", alignItems: "center", marginTop: spacing.sm },
+  date: { width: 92, color: colors.text },
+  barBg: { flex: 1, height: 10, backgroundColor: colors.primarySoft, borderRadius: 5, marginHorizontal: 8 },
+  bar: { height: 10, borderRadius: 5 },
+  value: { width: 42, textAlign: "right", fontWeight: "700", color: colors.text },
+  errorBox: {
+    flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#F8E5DF",
+    padding: 12, borderRadius: radius.sm,
+  },
+  errorText: { color: colors.error, flex: 1 },
+  button: {
+    flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center",
+    backgroundColor: colors.primaryDark, paddingVertical: 14, borderRadius: radius.md, marginTop: spacing.lg,
+  },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
 });

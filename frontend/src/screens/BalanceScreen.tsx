@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
 import { View, Text, Pressable, ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { getFarmerId } from "../auth/jwt";
 import { fetchBalance } from "../api/balance";
+import { colors, spacing, radius, shadow } from "../theme";
 
 export default function BalanceScreen() {
   const [data, setData] = useState<any>(null);
@@ -20,7 +22,7 @@ export default function BalanceScreen() {
       setData(null);
       setError(
         e?.message === "Network request failed"
-          ? "Cannot reach the server. Check Wi-Fi and backend."
+          ? "Cannot reach the server. Check your connection."
           : e?.message ?? "Something went wrong"
       );
     } finally {
@@ -28,33 +30,50 @@ export default function BalanceScreen() {
     }
   }, []);
 
-  // reloads every time the farmer opens this tab
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load])
   );
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>My carbon balance</Text>
+  const kg = data ? Number(data.balance_kg_co2) : 0;
 
-      {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
-      {error && <Text style={styles.error}>{error}</Text>}
-        {data && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Carbon credits earned</Text>
-          <Text style={styles.cardValue}>{Number(data.balance_kg_co2).toLocaleString()}</Text>
-          <Text style={styles.cardUnit}>kg CO₂</Text>
-          {Number(data.balance_kg_co2) === 0 && (
-            <Text style={styles.hint}>
-              No credits yet. Credits appear after your trees pass satellite verification.
-            </Text>
-          )}
+  return (
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <Text style={styles.title}>My carbon balance</Text>
+      <Text style={styles.subtitle}>Credits earned from verified, healthy trees.</Text>
+
+      {loading && !data && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
-      <Pressable style={styles.button} onPress={load} disabled={loading}>
+      {data && (
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="leaf" size={22} color={colors.white} />
+          </View>
+          <Text style={styles.heroLabel}>Carbon credits earned</Text>
+          <Text style={styles.heroValue}>{kg.toLocaleString()}</Text>
+          <Text style={styles.heroUnit}>kg CO₂</Text>
+        </View>
+      )}
+
+      {data && kg === 0 && (
+        <View style={styles.hintBox}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
+          <Text style={styles.hintText}>
+            No credits yet. They appear after your trees pass satellite verification.
+          </Text>
+        </View>
+      )}
+
+      <Pressable style={[styles.button, loading && { opacity: 0.6 }]} onPress={load} disabled={loading}>
+        <Ionicons name="refresh" size={18} color={colors.white} />
         <Text style={styles.buttonText}>Refresh</Text>
       </Pressable>
     </ScrollView>
@@ -62,15 +81,34 @@ export default function BalanceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, paddingTop: 60 },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 20 },
-  raw: { fontFamily: "monospace", marginTop: 16, color: "#222" },
-  card: { backgroundColor: "#e8f5e9", borderRadius: 12, padding: 24, alignItems: "center", marginTop: 8 },
-  cardLabel: { fontSize: 16, color: "#2e7d32", fontWeight: "600" },
-  cardValue: { fontSize: 48, fontWeight: "700", color: "#1b5e20", marginTop: 8 },
-  cardUnit: { fontSize: 18, color: "#2e7d32" },
-  hint: { marginTop: 16, color: "#555", textAlign: "center" },
-  error: { color: "#c62828", marginTop: 16 },
-  button: { backgroundColor: "#2e7d32", padding: 14, borderRadius: 8, alignItems: "center", marginTop: 24 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  container: { padding: spacing.lg, paddingTop: 64 },
+  title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
+  subtitle: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
+  hero: {
+    backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg,
+    alignItems: "center", ...shadow,
+  },
+  heroIcon: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,
+  },
+  heroLabel: { color: "#DCE9D5", fontWeight: "600" },
+  heroValue: { color: colors.white, fontSize: 56, fontWeight: "800", marginTop: spacing.xs },
+  heroUnit: { color: "#DCE9D5", fontSize: 18 },
+  hintBox: {
+    flexDirection: "row", gap: 10, alignItems: "center", marginTop: spacing.md,
+    backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  hintText: { flex: 1, color: colors.text },
+  errorBox: {
+    flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#F8E5DF",
+    padding: 12, borderRadius: radius.sm,
+  },
+  errorText: { color: colors.error, flex: 1 },
+  button: {
+    flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center",
+    backgroundColor: colors.primaryDark, paddingVertical: 14, borderRadius: radius.md, marginTop: spacing.lg,
+  },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
 });
