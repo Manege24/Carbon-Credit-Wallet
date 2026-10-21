@@ -3,6 +3,9 @@ import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, Scroll
 import * as Location from "expo-location";
 import { createPlot } from "../api/plots";
 import BatchForm from "./BatchForm";
+import * as Crypto from "expo-crypto";
+import { savePlotLocally } from "../storage/localDb";
+import { syncAll } from "../api/sync";
 
 export default function PlotsScreen() {
   const [lat, setLat] = useState<number | null>(null);
@@ -35,31 +38,30 @@ export default function PlotsScreen() {
   }
 
   async function save() {
-        const r = Number(radius);
+    if (lat === null || lng === null) return;
+    const r = Number(radius);
     if (!(r > 0 && r <= 2000)) {
       setIsError(true);
       setMessage("Radius must be more than 0 and at most 2000 metres.");
       return;
     }
-    if (lat === null || lng === null) return;
     setBusy(true);
     setMessage(null);
+    setPlotId(null);
     try {
-      const plot = await createPlot({
-        centroid_lat: lat,
-        centroid_lng: lng,
-        radius_m: Number(radius),
-      });
+      const id = Crypto.randomUUID();
+      await savePlotLocally({ plot_id: id, lat, lng, radius: r });
+      setPlotId(id);
       setIsError(false);
-      setPlotId(plot.plot_id ? String(plot.plot_id) : null);
-      setMessage(plot.plot_id ? "Plot saved. Now add your trees below." : "Plot saved, but no plot_id came back: " + JSON.stringify(plot));
+      try {
+        await syncAll();
+        setMessage("Plot saved and uploaded. Now add your trees below.");
+      } catch {
+        setMessage("Plot saved on your phone. It will upload when you are online. Add your trees below.");
+      }
     } catch (e: any) {
       setIsError(true);
-      setMessage(
-        e?.message === "Network request failed"
-          ? "Cannot reach the server. Check Wi-Fi and backend."
-          : e?.message ?? "Something went wrong"
-      );
+      setMessage(e?.message ?? "Something went wrong");
     } finally {
       setBusy(false);
     }

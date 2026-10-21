@@ -7,6 +7,8 @@ import PlotsScreen from "./src/screens/PlotsScreen";
 import { getToken, clearToken } from "./src/storage/tokenStore";
 import BalanceScreen from "./src/screens/BalanceScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
+import NetInfo from "@react-native-community/netinfo";
+import { syncAll } from "./src/api/sync";
 
 const Tab = createBottomTabNavigator();
 
@@ -20,6 +22,19 @@ export default function App() {
       setChecking(false);
     });
   }, []);
+  useEffect(() => {
+    if (!loggedIn) return;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) syncAll().catch(() => {});
+    });
+    const timer = setInterval(() => {
+      syncAll().catch(() => {});
+    }, 15000);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, [loggedIn]);
 
   if (checking) {
     return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator /></View>;

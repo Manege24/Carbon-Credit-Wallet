@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from "react-native";
-import { createBatch } from "../api/batches";
+import { saveBatchLocally } from "../storage/localDb";
+import { syncAll } from "../api/sync";
 
 type Props = { plotId: string };
 
@@ -33,9 +34,14 @@ export default function BatchForm({ plotId }: Props) {
     setBusy(true);
     setMessage(null);
     try {
-      await createBatch(plotId, { tree_count: n, species_type: species.trim(), date_planted: date });
+      await saveBatchLocally({ plot_id: plotId, tree_count: n, species_type: species.trim(), date_planted: date });
       setIsError(false);
-      setMessage("Tree batch saved.");
+      try {
+        await syncAll();
+        setMessage("Tree batch saved and uploaded.");
+      } catch {
+        setMessage("Tree batch saved on your phone. It will upload when you are online.");
+      }
       setCount("");
       setSpecies("");
     } catch (e: any) {
