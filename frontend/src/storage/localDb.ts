@@ -22,6 +22,10 @@ export function getDb() {
           date_planted TEXT NOT NULL,
           synced INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS kv (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
       `);
       return db;
     })();
@@ -51,4 +55,38 @@ export async function countPending(): Promise<number> {
   const p = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM local_plots WHERE synced = 0");
   const b = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM local_batches WHERE synced = 0");
   return (p?.n ?? 0) + (b?.n ?? 0);
+}
+
+export type LocalPlot = {
+  plot_id: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  synced: number;
+  trees: number;
+  batches: number;
+};
+
+export async function listPlots(): Promise<LocalPlot[]> {
+  const db = await getDb();
+  return db.getAllAsync<LocalPlot>(
+    `SELECT p.plot_id, p.lat, p.lng, p.radius, p.synced,
+            COALESCE(SUM(b.tree_count), 0) AS trees,
+            COUNT(b.id) AS batches
+     FROM local_plots p
+     LEFT JOIN local_batches b ON b.plot_id = p.plot_id
+     GROUP BY p.plot_id
+     ORDER BY p.rowid DESC`
+  );
+}
+
+export async function setCache(key: string, value: unknown) {
+  const db = await getDb();
+  await db.runAsync("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", [key, JSON.stringify(value)]);
+}
+
+export async function getCache<T>(key: string): Promise<T | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM kv WHERE key = ?", [key]);
+  return row ? (JSON.parse(row.value) as T) : null;
 }
