@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LoginScreen from "./src/screens/LoginScreen";
 import PlotsScreen from "./src/screens/PlotsScreen";
 import { getToken } from "./src/storage/tokenStore";
-import BalanceScreen from "./src/screens/BalanceScreen";
+
 import HistoryScreen from "./src/screens/HistoryScreen";
 import NetInfo from "@react-native-community/netinfo";
 import { syncAll } from "./src/api/sync";
@@ -37,7 +37,6 @@ function Tabs({ onLogout }: { onLogout: () => void }) {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: "home-outline",
             Plots: "map-outline",
-            Balance: "wallet-outline",
             History: "pulse-outline",
             Account: "person-outline",
           };
@@ -47,7 +46,6 @@ function Tabs({ onLogout }: { onLogout: () => void }) {
     > 
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Plots" component={PlotsScreen} />
-      <Tab.Screen name="Balance" component={BalanceScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Account">{() => <AccountScreen onLogout={onLogout} />}</Tab.Screen>
     </Tab.Navigator>
