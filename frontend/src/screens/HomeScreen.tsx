@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, RefreshControl, StyleSheet } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,8 @@ import { getFarmerId } from "../auth/jwt";
 import { fetchBalance } from "../api/balance";
 import { fetchHistory } from "../api/history";
 import { listPlots, countPending, setCache, getCache, LocalPlot } from "../storage/localDb";
+import { unreadCount, saveNotices, buildNotices } from "../notifications";
+import NotificationsScreen from "./NotificationsScreen";
 import { colors, spacing, radius, shadow } from "../theme";
 
 type Latest = Record<string, { date: string; ndvi: number }>;
@@ -19,6 +21,8 @@ export default function HomeScreen() {
   const [latest, setLatest] = useState<Latest>({});
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const [showNotices, setShowNotices] = useState(false);
 
   const load = useCallback(async () => {
     // 1. local data first (works offline)
@@ -29,6 +33,7 @@ export default function HomeScreen() {
     try {
       const id = await getFarmerId();
       if (!id) throw new Error("no id");
+
       const b = await fetchBalance(id);
       const kg = Number(b.balance_kg_co2);
       setBalance(kg);
@@ -38,16 +43,21 @@ export default function HomeScreen() {
       const map: Latest = {};
       for (const s of hist) {
         const key = s.plot_id.toLowerCase();
-        if (!map[key] || s.scan_date > map[key].date) map[key] = { date: s.scan_date, ndvi: s.ndvi_value };
+        if (!map[key] || s.scan_date > map[key].date) {
+          map[key] = { date: s.scan_date, ndvi: s.ndvi_value };
+        }
       }
       setLatest(map);
       await setCache("latest", map);
+      await saveNotices(buildNotices(hist));
       setOffline(false);
     } catch {
       setBalance(await getCache<number>("balance"));
       setLatest((await getCache<Latest>("latest")) ?? {});
       setOffline(true);
     }
+
+    setUnread(await unreadCount());
   }, []);
 
   useFocusEffect(
@@ -62,12 +72,33 @@ export default function HomeScreen() {
     setRefreshing(false);
   }
 
+  if (showNotices) {
+    return (
+      <NotificationsScreen
+        onBack={() => {
+          setShowNotices(false);
+          load();
+        }}
+      />
+    );
+  }
+
   const totalTrees = plots.reduce((n, p) => n + p.trees, 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-        <Text style={styles.title}>Home</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={styles.title}>Home</Text>
+          <Pressable onPress={() => setShowNotices(true)} hitSlop={10} style={{ marginRight: 56 }}>
+            <Ionicons name="notifications-outline" size={26} color={colors.primaryDark} />
+            {unread > 0 && (
+              <View style={styles.dot}>
+                <Text style={styles.dotText}>{unread > 9 ? "9+" : unread}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
         <Text style={styles.sub}>Your plots and carbon credits at a glance.</Text>
         {offline && (
           <View style={styles.offline}>
@@ -144,6 +175,11 @@ function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; va
 const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
   sub: { color: colors.muted, marginTop: spacing.xs },
+  dot: {
+    position: "absolute", top: -6, right: -8, minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: colors.error, alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
+  },
+  dotText: { color: colors.white, fontSize: 11, fontWeight: "700" },
   offline: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     backgroundColor: "#F3E3D3", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, marginTop: spacing.sm,
