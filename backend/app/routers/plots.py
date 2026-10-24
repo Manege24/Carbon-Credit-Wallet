@@ -1,18 +1,21 @@
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import TokenPayload, require_role
 from app.models.carbon_token import CarbonToken
 from app.models.enums import TokenStatus
+from app.models.farmer import Farmer
 from app.models.ndvi_scan import NDVIScan
 from app.models.tree_batch import TreeBatch
 from app.models.tree_plot import TreePlot
 from app.schemas.plot import PlotOut, PlotRegisterRequest, TreeBatchOut, TreeBatchRequest
-from app.core.config import settings
 from app.services.verification import Decision, evaluate_scans, get_active_config
+
 
 router = APIRouter(tags=["plots"])
 
@@ -40,6 +43,20 @@ def record_tree_batch(plot_id: uuid.UUID, payload: TreeBatchRequest, db: Session
     db.commit()
     db.refresh(batch)
     return batch
+
+
+@router.get("/farmers/me")
+def my_profile(db: Session = Depends(get_db),
+               current: TokenPayload = Depends(require_role("FARMER"))):
+    farmer = db.get(Farmer, uuid.UUID(current.sub))
+    if farmer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return {
+        "farmer_id": farmer.farmer_id,
+        "full_name": farmer.full_name,
+        "phone_number": farmer.phone_number,
+        "county": farmer.county,
+    }
 
 
 @router.get("/farmers/{farmer_id}/balance")

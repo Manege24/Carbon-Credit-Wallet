@@ -90,3 +90,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
   const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM kv WHERE key = ?", [key]);
   return row ? (JSON.parse(row.value) as T) : null;
 }
+
+export async function getLastSync(): Promise<string | null> {
+  return getCache<string>("last_sync");
+}
