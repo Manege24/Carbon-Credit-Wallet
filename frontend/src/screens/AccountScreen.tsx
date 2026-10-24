@@ -54,6 +54,7 @@ export default function AccountScreen({ onLogout }: Props) {
 
   async function logout() {
     await clearToken();
+    await setCache("profile", null);
     onLogout();
   }
 

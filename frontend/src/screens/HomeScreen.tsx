@@ -10,6 +10,8 @@ import { listPlots, countPending, setCache, getCache, LocalPlot } from "../stora
 import { unreadCount, saveNotices, buildNotices } from "../notifications";
 import NotificationsScreen from "./NotificationsScreen";
 import { colors, spacing, radius, shadow } from "../theme";
+import { greetingForNow, firstName } from "../greeting";
+import { fetchProfile, Profile } from "../api/profile";
 
 type Latest = Record<string, { date: string; ndvi: number }>;
 
@@ -23,6 +25,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [unread, setUnread] = useState(0);
   const [showNotices, setShowNotices] = useState(false);
+  const [name, setName] = useState<string>("");
 
   const load = useCallback(async () => {
     // 1. local data first (works offline)
@@ -56,7 +59,14 @@ export default function HomeScreen() {
       setLatest((await getCache<Latest>("latest")) ?? {});
       setOffline(true);
     }
-
+      try {
+      const p = await fetchProfile();
+      setName(p.full_name);
+      await setCache("profile", p);
+    } catch {
+      const cached = await getCache<Profile>("profile");
+      setName(cached?.full_name ?? "");
+    }
     setUnread(await unreadCount());
   }, []);
 
@@ -99,6 +109,9 @@ export default function HomeScreen() {
             )}
           </Pressable>
         </View>
+        <Text style={styles.greeting}>
+          {greetingForNow()}{name ? `, ${firstName(name)}` : ""}
+        </Text>
         <Text style={styles.sub}>Your plots and carbon credits at a glance.</Text>
         {offline && (
           <View style={styles.offline}>
@@ -173,6 +186,7 @@ function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; va
 }
 
 const styles = StyleSheet.create({
+  greeting: { fontSize: 18, fontWeight: "600", color: colors.primary, marginTop: spacing.xs },
   title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
   sub: { color: colors.muted, marginTop: spacing.xs },
   dot: {
