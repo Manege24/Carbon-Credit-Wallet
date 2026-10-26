@@ -6,12 +6,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { getFarmerId } from "../auth/jwt";
 import { fetchBalance } from "../api/balance";
 import { fetchHistory } from "../api/history";
-import { listPlots, countPending, setCache, getCache, LocalPlot } from "../storage/localDb";
+import { listPlots, countPending, setCache, getCache, LocalPlot, mergeServerPlots } from "../storage/localDb";
 import { unreadCount, saveNotices, buildNotices } from "../notifications";
 import NotificationsScreen from "./NotificationsScreen";
 import { colors, spacing, radius, shadow } from "../theme";
 import { greetingForNow, firstName } from "../greeting";
 import { fetchProfile, Profile } from "../api/profile";
+import { fetchMyPlots } from "../api/plots";
 
 type Latest = Record<string, { date: string; ndvi: number }>;
 
@@ -37,6 +38,9 @@ export default function HomeScreen() {
       const id = await getFarmerId();
       if (!id) throw new Error("no id");
 
+      await mergeServerPlots(await fetchMyPlots());
+      setPlots(await listPlots());
+      
       const b = await fetchBalance(id);
       const kg = Number(b.balance_kg_co2);
       setBalance(kg);

@@ -58,6 +58,27 @@ def my_profile(db: Session = Depends(get_db),
         "county": farmer.county,
     }
 
+@router.get("/farmers/me/plots")
+def my_plots(db: Session = Depends(get_db),
+             current: TokenPayload = Depends(require_role("FARMER"))):
+    farmer_id = uuid.UUID(current.sub)
+    plots = db.execute(select(TreePlot).where(TreePlot.farmer_id == farmer_id)).scalars().all()
+    result = []
+    for p in plots:
+        batches = db.execute(select(TreeBatch).where(TreeBatch.plot_id == p.plot_id)).scalars().all()
+        result.append({
+            "plot_id": p.plot_id,
+            "centroid_lat": p.centroid_lat,
+            "centroid_lng": p.centroid_lng,
+            "radius_m": p.radius_m,
+            "batches": [
+                {"tree_count": b.tree_count, "species_type": b.species_type,
+                 "date_planted": b.date_planted}
+                for b in batches
+            ],
+        })
+    return result
+
 
 @router.get("/farmers/{farmer_id}/balance")
 def view_token_balance(farmer_id: uuid.UUID, db: Session = Depends(get_db),

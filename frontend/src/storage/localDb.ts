@@ -111,3 +111,29 @@ export async function ensureOwner(farmerId: string): Promise<boolean> {
   if (!owner) await setCache("owner_id", farmerId);
   return false;
 }
+
+export async function mergeServerPlots(
+  serverPlots: {
+    plot_id: string; centroid_lat: number; centroid_lng: number; radius_m: number;
+    batches: { tree_count: number; species_type: string; date_planted: string }[];
+  }[]
+) {
+  const db = await getDb();
+  for (const p of serverPlots) {
+    const id = p.plot_id.toLowerCase();
+    const exists = await db.getFirstAsync<{ plot_id: string }>(
+      "SELECT plot_id FROM local_plots WHERE lower(plot_id) = ?", [id]
+    );
+    if (exists) continue; // keep the local copy, it may have unsent batches
+    await db.runAsync(
+      "INSERT INTO local_plots (plot_id, lat, lng, radius, synced) VALUES (?, ?, ?, ?, 1)",
+      [id, p.centroid_lat, p.centroid_lng, p.radius_m]
+    );
+    for (const b of p.batches) {
+      await db.runAsync(
+        "INSERT INTO local_batches (plot_id, tree_count, species_type, date_planted, synced) VALUES (?, ?, ?, ?, 1)",
+        [id, b.tree_count, b.species_type, b.date_planted]
+      );
+    }
+  }
+}
