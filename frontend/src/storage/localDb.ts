@@ -137,3 +137,13 @@ export async function mergeServerPlots(
     }
   }
 }
+
+export async function listBatches(plotId: string) {
+  const db = await getDb();
+  return db.getAllAsync<{
+    id: number; tree_count: number; species_type: string; date_planted: string; synced: number;
+  }>(
+    "SELECT id, tree_count, species_type, date_planted, synced FROM local_batches WHERE lower(plot_id) = ? ORDER BY id DESC",
+    [plotId.toLowerCase()]
+  );
+}

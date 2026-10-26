@@ -13,6 +13,7 @@ import { colors, spacing, radius, shadow } from "../theme";
 import { greetingForNow, firstName } from "../greeting";
 import { fetchProfile, Profile } from "../api/profile";
 import { fetchMyPlots } from "../api/plots";
+import PlotDetailScreen from "./PlotDetailScreen";
 
 type Latest = Record<string, { date: string; ndvi: number }>;
 
@@ -27,6 +28,7 @@ export default function HomeScreen() {
   const [unread, setUnread] = useState(0);
   const [showNotices, setShowNotices] = useState(false);
   const [name, setName] = useState<string>("");
+  const [openPlot, setOpenPlot] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     // 1. local data first (works offline)
@@ -40,7 +42,7 @@ export default function HomeScreen() {
 
       await mergeServerPlots(await fetchMyPlots());
       setPlots(await listPlots());
-      
+
       const b = await fetchBalance(id);
       const kg = Number(b.balance_kg_co2);
       setBalance(kg);
@@ -91,6 +93,18 @@ export default function HomeScreen() {
       <NotificationsScreen
         onBack={() => {
           setShowNotices(false);
+          load();
+        }}
+      />
+    );
+  }
+
+  if (openPlot) {
+    return (
+      <PlotDetailScreen
+        plotId={openPlot}
+        onBack={() => {
+          setOpenPlot(null);
           load();
         }}
       />
@@ -155,7 +169,7 @@ export default function HomeScreen() {
         {plots.map((p) => {
           const scan = latest[p.plot_id.toLowerCase()];
           return (
-            <View key={p.plot_id} style={styles.card}>
+            <Pressable key={p.plot_id} style={styles.card} onPress={() => setOpenPlot(p.plot_id)}>
               <View style={styles.cardTop}>
                 <Text style={styles.plotName}>Plot ...{p.plot_id.slice(-4)}</Text>
                 <View style={[styles.pill, p.synced ? styles.pillOk : styles.pillWait]}>
@@ -173,7 +187,8 @@ export default function HomeScreen() {
               <Text style={styles.ndvi}>
                 {scan ? `Latest NDVI ${scan.ndvi.toFixed(2)} (${scan.date})` : "No satellite check yet"}
               </Text>
-            </View>
+              <Text style={styles.tap}>Tap to view or add trees</Text>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -228,4 +243,5 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 12, fontWeight: "700" },
   line: { color: colors.text, marginTop: 6 },
   ndvi: { color: colors.muted, marginTop: 8 },
+  tap: { color: colors.primary, marginTop: 6, fontWeight: "600", fontSize: 12 },
 });
