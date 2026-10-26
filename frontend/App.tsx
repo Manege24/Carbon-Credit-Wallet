@@ -17,6 +17,7 @@ import RegisterScreen from "./src/screens/RegisterScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import { getFarmerId } from "./src/auth/jwt";
 import { ensureOwner } from "./src/storage/localDb";
+import { onSessionExpired } from "./src/auth/session";
 
 const Tab = createBottomTabNavigator();
 function Tabs({ onLogout }: { onLogout: () => void }) {
@@ -65,6 +66,14 @@ function AppContent() {
       setChecking(false);
     });
   }, []);
+  
+  useEffect(() => {
+    return onSessionExpired(() => {
+      setNotice("Your session expired. Please log in again.");
+      setLoggedIn(false);
+    });
+  }, []);
+
   useEffect(() => {
     if (!loggedIn) return;
     const unsubscribe = NetInfo.addEventListener((state) => {

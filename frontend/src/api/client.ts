@@ -1,12 +1,14 @@
 import { API_URL } from "../config";
-import { getToken } from "../storage/tokenStore";
+import { getToken, clearToken } from "../storage/tokenStore";
+import { notifySessionExpired } from "../auth/session";
 
 export async function authFetch(path: string, options: RequestInit = {}) {
   const token = await getToken();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
+  let res: Response;
   try {
-    return await fetch(`${API_URL}${path}`, {
+    res = await fetch(`${API_URL}${path}`, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -20,4 +22,11 @@ export async function authFetch(path: string, options: RequestInit = {}) {
   } finally {
     clearTimeout(timer);
   }
+
+  if (res.status === 401) {
+    await clearToken();
+    notifySessionExpired();
+    throw new Error("Session expired");
+  }
+  return res;
 }
