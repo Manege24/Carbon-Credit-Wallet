@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,7 +7,7 @@ import Constants from "expo-constants";
 import { clearToken } from "../storage/tokenStore";
 import { fetchProfile, Profile } from "../api/profile";
 import { syncAll } from "../api/sync";
-import { countPending, getCache, setCache, getLastSync } from "../storage/localDb";
+import { countPending, getCache, setCache, getLastSync, clearLocalData } from "../storage/localDb";
 import { colors, spacing, radius, shadow } from "../theme";
 
 type Props = { onLogout: () => void };
@@ -53,9 +53,27 @@ export default function AccountScreen({ onLogout }: Props) {
   }
 
   async function logout() {
-    await clearToken();
-    await setCache("profile", null);
-    onLogout();
+    if ((await countPending()) > 0) {
+      try { await syncAll(); } catch {}
+    }
+    const left = await countPending();
+    const finish = async () => {
+      await clearToken();
+      await clearLocalData();
+      onLogout();
+    };
+    if (left > 0) {
+      Alert.alert(
+        "Data not uploaded",
+        `${left} record(s) have not been uploaded yet and will be lost if you log out. Log out anyway?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Log out", style: "destructive", onPress: finish },
+        ]
+      );
+    } else {
+      await finish();
+    }
   }
 
   const last = lastSync ? new Date(lastSync).toLocaleString() : "Never";

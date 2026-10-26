@@ -15,6 +15,8 @@ import { colors } from "./src/theme";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import HomeScreen from "./src/screens/HomeScreen";
+import { getFarmerId } from "./src/auth/jwt";
+import { ensureOwner } from "./src/storage/localDb";
 
 const Tab = createBottomTabNavigator();
 function Tabs({ onLogout }: { onLogout: () => void }) {
@@ -97,7 +99,11 @@ function AppContent() {
       <LoginScreen
         notice={notice}
         onRegister={() => { setNotice(null); setRegistering(true); }}
-        onLoginSuccess={() => setLoggedIn(true)}
+        onLoginSuccess={async () => {
+          const id = await getFarmerId();
+          if (id) await ensureOwner(id);
+          setLoggedIn(true);
+        }}
       />
     );
   }

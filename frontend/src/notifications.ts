@@ -35,8 +35,22 @@ export async function saveNotices(n: Notice[]) {
   await setCache("notices", n);
 }
 
+export async function getDismissed(): Promise<string[]> {
+  return (await getCache<string[]>("notices_dismissed")) ?? [];
+}
+
+export async function dismissNotices(ids: string[]) {
+  const current = await getDismissed();
+  await setCache("notices_dismissed", Array.from(new Set([...current, ...ids])));
+}
+
+// visible = not dismissed
 export async function loadNotices(): Promise<Notice[]> {
-  return (await getCache<Notice[]>("notices")) ?? [];
+  const [all, dismissed] = await Promise.all([
+    getCache<Notice[]>("notices").then((x) => x ?? []),
+    getDismissed(),
+  ]);
+  return all.filter((n) => !dismissed.includes(n.id));
 }
 
 export async function getSeen(): Promise<string[]> {

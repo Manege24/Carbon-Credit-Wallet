@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getFarmerId } from "../auth/jwt";
 import { fetchHistory } from "../api/history";
-import { buildNotices, saveNotices, loadNotices, getSeen, markAllSeen, Notice } from "../notifications";
+import {
+  buildNotices, saveNotices, loadNotices, getSeen, markAllSeen, dismissNotices, Notice,
+} from "../notifications";
 import { colors, spacing, radius, shadow } from "../theme";
 
 const KIND: Record<Notice["kind"], { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
@@ -24,25 +26,31 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const previouslySeen = await getSeen();
-        setSeen(previouslySeen);
+        setSeen(await getSeen());
         try {
           const id = await getFarmerId();
           if (!id) throw new Error("no id");
-          const fresh = buildNotices(await fetchHistory(id));
-          await saveNotices(fresh);
-          setNotices(fresh);
+          await saveNotices(buildNotices(await fetchHistory(id)));
           setOffline(false);
-          await markAllSeen(fresh);
         } catch {
-          const cached = await loadNotices();
-          setNotices(cached);
           setOffline(true);
-          await markAllSeen(cached);
         }
+        const visible = await loadNotices();
+        setNotices(visible);
+        await markAllSeen(visible);
       })();
     }, [])
   );
+
+  async function remove(id: string) {
+    await dismissNotices([id]);
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  async function clearAll() {
+    await dismissNotices(notices.map((n) => n.id));
+    setNotices([]);
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -51,7 +59,14 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
           <Ionicons name="arrow-back" size={22} color={colors.primaryDark} />
           <Text style={styles.backText}>Back</Text>
         </Pressable>
-        <Text style={styles.title}>Notifications</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Notifications</Text>
+          {notices.length > 0 && (
+            <Pressable onPress={clearAll} hitSlop={10} style={{ marginRight: 56 }}>
+              <Text style={styles.clear}>Clear all</Text>
+            </Pressable>
+          )}
+        </View>
         {offline && <Text style={styles.offline}>Offline: showing saved notifications</Text>}
       </View>
 
@@ -59,7 +74,7 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
         {notices.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="notifications-off-outline" size={36} color={colors.muted} />
-            <Text style={styles.emptyText}>Nothing yet. Updates appear after your plots are checked from space.</Text>
+            <Text style={styles.emptyText}>Nothing here. Updates appear after your plots are checked from space.</Text>
           </View>
         )}
         {notices.map((n) => {
@@ -75,6 +90,9 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
                 </View>
                 <Text style={styles.body}>{n.body}</Text>
               </View>
+              <Pressable onPress={() => remove(n.id)} hitSlop={10}>
+                <Ionicons name="close" size={20} color={colors.muted} />
+              </Pressable>
             </View>
           );
         })}
@@ -86,7 +104,9 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
 const styles = StyleSheet.create({
   back: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.sm },
   backText: { color: colors.primaryDark, fontWeight: "600" },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
+  clear: { color: colors.primary, fontWeight: "700" },
   offline: { color: colors.accent, marginTop: spacing.xs, fontWeight: "600" },
   empty: { alignItems: "center", marginTop: spacing.xl, gap: spacing.sm },
   emptyText: { color: colors.muted, textAlign: "center" },

@@ -99,7 +99,9 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={styles.title}>Home</Text>
+          <Text style={styles.greeting}>
+            {greetingForNow()}{name ? `, ${firstName(name)}` : ""}
+          </Text>
           <Pressable onPress={() => setShowNotices(true)} hitSlop={10} style={{ marginRight: 56 }}>
             <Ionicons name="notifications-outline" size={26} color={colors.primaryDark} />
             {unread > 0 && (
@@ -186,7 +188,7 @@ function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; va
 }
 
 const styles = StyleSheet.create({
-  greeting: { fontSize: 18, fontWeight: "600", color: colors.primary, marginTop: spacing.xs },
+  greeting: { fontSize: 24, fontWeight: "700", color: colors.primaryDark, flex: 1 },
   title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
   sub: { color: colors.muted, marginTop: spacing.xs },
   dot: {

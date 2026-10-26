@@ -94,3 +94,20 @@ export async function getCache<T>(key: string): Promise<T | null> {
 export async function getLastSync(): Promise<string | null> {
   return getCache<string>("last_sync");
 }
+
+export async function clearLocalData() {
+  const db = await getDb();
+  await db.execAsync("DELETE FROM local_batches; DELETE FROM local_plots; DELETE FROM kv;");
+}
+
+// Wipes local data if it belongs to a different farmer. Returns true if it wiped.
+export async function ensureOwner(farmerId: string): Promise<boolean> {
+  const owner = await getCache<string>("owner_id");
+  if (owner && owner !== farmerId) {
+    await clearLocalData();
+    await setCache("owner_id", farmerId);
+    return true;
+  }
+  if (!owner) await setCache("owner_id", farmerId);
+  return false;
+}
