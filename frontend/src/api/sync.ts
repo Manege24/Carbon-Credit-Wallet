@@ -1,6 +1,6 @@
 import { authFetch } from "./client";
 import { createBatch } from "./batches";
-import { getDb } from "../storage/localDb";
+import { getDb, setCache } from "../storage/localDb";
 
 let running = false;
 
@@ -48,6 +48,9 @@ export async function syncAll() {
       });
       await db.runAsync("UPDATE local_batches SET synced = 1 WHERE id = ?", [b.id]);
     }
+
+    // 3. record the time of the last successful sync (even if nothing was waiting)
+    await setCache("last_sync", new Date().toISOString());
   } finally {
     running = false;
   }

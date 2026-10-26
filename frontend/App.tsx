@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import LoginScreen from "./src/screens/LoginScreen";
 import PlotsScreen from "./src/screens/PlotsScreen";
 import { getToken } from "./src/storage/tokenStore";
-import BalanceScreen from "./src/screens/BalanceScreen";
+
 import HistoryScreen from "./src/screens/HistoryScreen";
 import NetInfo from "@react-native-community/netinfo";
 import { syncAll } from "./src/api/sync";
@@ -14,6 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "./src/theme";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import RegisterScreen from "./src/screens/RegisterScreen";
+import HomeScreen from "./src/screens/HomeScreen";
+import { getFarmerId } from "./src/auth/jwt";
+import { ensureOwner } from "./src/storage/localDb";
 
 const Tab = createBottomTabNavigator();
 function Tabs({ onLogout }: { onLogout: () => void }) {
@@ -34,17 +37,17 @@ function Tabs({ onLogout }: { onLogout: () => void }) {
         tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
         tabBarIcon: ({ color, size }) => {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+            Home: "home-outline",
             Plots: "map-outline",
-            Balance: "wallet-outline",
             History: "pulse-outline",
             Account: "person-outline",
           };
           return <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />;
         },
       })}
-    >
+    > 
+      <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Plots" component={PlotsScreen} />
-      <Tab.Screen name="Balance" component={BalanceScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
       <Tab.Screen name="Account">{() => <AccountScreen onLogout={onLogout} />}</Tab.Screen>
     </Tab.Navigator>
@@ -96,7 +99,11 @@ function AppContent() {
       <LoginScreen
         notice={notice}
         onRegister={() => { setNotice(null); setRegistering(true); }}
-        onLoginSuccess={() => setLoggedIn(true)}
+        onLoginSuccess={async () => {
+          const id = await getFarmerId();
+          if (id) await ensureOwner(id);
+          setLoggedIn(true);
+        }}
       />
     );
   }

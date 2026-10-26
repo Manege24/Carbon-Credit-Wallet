@@ -4,6 +4,9 @@ export type ScanItem = {
   plot_id: string;
   scan_date: string;
   ndvi_value: number;
+  outcome: "pending" | "verified" | "withheld" | "degraded";
+  tokens_issued_kg: number;
+  tokens_revoked_kg: number;
 };
 
 export async function fetchHistory(farmerId: string): Promise<ScanItem[]> {
