@@ -25,8 +25,11 @@ def purchase_tokens(payload: PurchaseRequest, db: Session = Depends(get_db),
     token = db.get(CarbonToken, payload.token_id)
     if not token or token.status != TokenStatus.issued:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Token not available for purchase")
-    if payload.quantity_kg_co2 > token.quantity_kg_co2:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Requested quantity exceeds availability")
+    if payload.quantity_kg_co2 != token.quantity_kg_co2:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Tokens are sold whole: quantity must equal {token.quantity_kg_co2} kg",
+        )
     token.status = TokenStatus.purchased
     entry = LedgerEntry(entry_id=uuid.uuid4(), token_id=token.token_id, farmer_id=token.plot.farmer_id,
                          buyer_account_id=uuid.UUID(current.sub), entry_type=EntryType.purchase, amount=payload.quantity_kg_co2)
