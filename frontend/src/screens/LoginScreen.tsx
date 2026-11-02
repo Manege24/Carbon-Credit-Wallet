@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { login } from "../api/auth";
-import { saveToken } from "../storage/tokenStore";
+import { saveToken, saveRefreshToken} from "../storage/tokenStore";
 import { colors, spacing, radius, shadow } from "../theme";
 
 type Props = { onLoginSuccess: (role?: string) => void; onRegister: () => void; notice?: string | null };
@@ -23,6 +23,7 @@ export default function LoginScreen({ onLoginSuccess, onRegister, notice }: Prop
     try {
       const result = await login(phone.trim(), password);
       await saveToken(result.access_token);
+      if (result.refresh_token) await saveRefreshToken(result.refresh_token);
       onLoginSuccess(result.role);
     } catch (e: any) {
       if (e?.message === "Network request failed") {

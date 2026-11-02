@@ -12,3 +12,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: str
+    refresh_token: str | None = None
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
