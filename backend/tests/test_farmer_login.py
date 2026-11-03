@@ -73,3 +73,23 @@ def test_archive_plot_rules(client):
     # the server still lists it, marked archived
     plots = client.get("/farmers/me/plots", headers=owner).json()
     assert plots[0]["status"] == "archived"
+
+def test_verification_skips_plot_without_trees(client):
+    from app.core.database import SessionLocal
+    from app.models.tree_plot import TreePlot
+    from app.services.imagery import get_imagery_provider
+    from app.services.verification import verify_plot
+
+    client.post("/farmers/register", json={"full_name": "E", "phone_number": "0755222001",
+                "county": "Nairobi", "device_id": "e", "password": "secret123"})
+    login = client.post("/auth/login", data={"username": "0755222001", "password": "secret123"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    plot_id = client.post("/plots", json={"centroid_lat": -1.2, "centroid_lng": 36.8, "radius_m": 40},
+                          headers=headers).json()["plot_id"]
+    db = SessionLocal()
+    try:
+        plot = db.get(TreePlot, __import__("uuid").UUID(plot_id))
+        result = verify_plot(db, plot, get_imagery_provider())
+        assert result.outcome == "no_trees"
+    finally:
+        db.close()

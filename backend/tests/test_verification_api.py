@@ -6,6 +6,7 @@ from app.core.security import hash_password
 from app.models.enums import AccountRole
 from app.models.farmer import Farmer
 from app.models.platform_account import PlatformAccount
+from app.models.tree_batch import TreeBatch
 from app.models.tree_plot import TreePlot
 
 
@@ -18,7 +19,7 @@ def _login(client, role, username):
     return client.post("/auth/login", data={"username": username, "password": "pw12345"}).json()["access_token"]
 
 
-def _plot():
+def _plot(with_trees: bool = True):
     db = SessionLocal()
     farmer = Farmer(farmer_id=uuid.uuid4(), full_name="API Farmer",
                     phone_number=f"+2547{uuid.uuid4().int % 10**8:08d}", county="Nakuru")
@@ -27,6 +28,10 @@ def _plot():
     plot = TreePlot(plot_id=uuid.uuid4(), farmer_id=farmer.farmer_id, centroid_lat=-0.3,
                     centroid_lng=36.0, radius_m=50)
     db.add(plot)
+    db.flush()
+    if with_trees:
+        db.add(TreeBatch(batch_id=uuid.uuid4(), plot_id=plot.plot_id, tree_count=30,
+                         species_type="Test", date_planted=date(2026, 1, 1)))
     db.commit()
     pid = plot.plot_id
     db.close()
@@ -40,6 +45,14 @@ def test_admin_can_verify_a_single_plot(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["outcome"] == "pending" and body["ndvi_value"] is not None
+
+
+def test_plot_without_trees_is_not_verified(client):
+    token = _login(client, AccountRole.admin, "verify_admin_empty")
+    plot_id = _plot(with_trees=False)
+    resp = client.post(f"/admin/plots/{plot_id}/verify?as_of=2026-01-15", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["outcome"] == "no_trees"
 
 
 def test_admin_can_run_full_cycle_and_own_plot_is_included(client):
