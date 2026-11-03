@@ -131,6 +131,8 @@ def _revoke_window_tokens(db: Session, plot: TreePlot, window: list[NDVIScan]) -
 def verify_plot(db: Session, plot: TreePlot, provider: ImageryProvider,
                 as_of: date | None = None) -> VerificationResult:
     as_of = as_of or date.today()
+    if not plot.batches:
+        return VerificationResult(plot.plot_id, "no_trees", detail="Plot has no recorded trees")
     source = get_or_create_source(db, provider)
     config = get_active_config(db)
 

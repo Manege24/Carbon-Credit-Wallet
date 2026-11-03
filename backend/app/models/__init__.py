@@ -7,3 +7,4 @@ from app.models.ndvi_scan import NDVIScan
 from app.models.platform_account import PlatformAccount
 from app.models.carbon_token import CarbonToken
 from app.models.ledger_entry import LedgerEntry
+from app.models.refresh_token import RefreshToken  # noqa: F401

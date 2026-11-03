@@ -6,14 +6,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { getFarmerId } from "../auth/jwt";
 import { fetchBalance } from "../api/balance";
 import { fetchHistory } from "../api/history";
-import { listPlots, countPending, setCache, getCache, LocalPlot, mergeServerPlots } from "../storage/localDb";
-import { unreadCount, saveNotices, buildNotices } from "../notifications";
-import NotificationsScreen from "./NotificationsScreen";
-import { colors, spacing, radius, shadow } from "../theme";
-import { greetingForNow, firstName } from "../greeting";
-import { fetchProfile, Profile } from "../api/profile";
 import { fetchMyPlots } from "../api/plots";
+import { fetchProfile, Profile } from "../api/profile";
+import {
+  listPlots,
+  countPending,
+  setCache,
+  getCache,
+  mergeServerPlots,
+  LocalPlot,
+} from "../storage/localDb";
+import { unreadCount, saveNotices, buildNotices } from "../notifications";
+import { greetingForNow, firstName } from "../greeting";
+import NotificationsScreen from "./NotificationsScreen";
 import PlotDetailScreen from "./PlotDetailScreen";
+import { colors, spacing, radius, shadow } from "../theme";
 
 type Latest = Record<string, { date: string; ndvi: number }>;
 
@@ -27,8 +34,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [unread, setUnread] = useState(0);
   const [showNotices, setShowNotices] = useState(false);
-  const [name, setName] = useState<string>("");
   const [openPlot, setOpenPlot] = useState<string | null>(null);
+  const [name, setName] = useState<string>("");
 
   const load = useCallback(async () => {
     // 1. local data first (works offline)
@@ -65,7 +72,8 @@ export default function HomeScreen() {
       setLatest((await getCache<Latest>("latest")) ?? {});
       setOffline(true);
     }
-      try {
+
+    try {
       const p = await fetchProfile();
       setName(p.full_name);
       await setCache("profile", p);
@@ -73,6 +81,7 @@ export default function HomeScreen() {
       const cached = await getCache<Profile>("profile");
       setName(cached?.full_name ?? "");
     }
+
     setUnread(await unreadCount());
   }, []);
 
@@ -111,14 +120,16 @@ export default function HomeScreen() {
     );
   }
 
-  const totalTrees = plots.reduce((n, p) => n + p.trees, 0);
+  const activePlots = plots.filter((p) => !p.archived);
+  const totalTrees = activePlots.reduce((n, p) => n + p.trees, 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={styles.greeting}>
-            {greetingForNow()}{name ? `, ${firstName(name)}` : ""}
+            {greetingForNow()}
+            {name ? `, ${firstName(name)}` : ""}
           </Text>
           <Pressable onPress={() => setShowNotices(true)} hitSlop={10} style={{ marginRight: 56 }}>
             <Ionicons name="notifications-outline" size={26} color={colors.primaryDark} />
@@ -129,9 +140,6 @@ export default function HomeScreen() {
             )}
           </Pressable>
         </View>
-        <Text style={styles.greeting}>
-          {greetingForNow()}{name ? `, ${firstName(name)}` : ""}
-        </Text>
         <Text style={styles.sub}>Your plots and carbon credits at a glance.</Text>
         {offline && (
           <View style={styles.offline}>
@@ -152,21 +160,21 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <Stat icon="map-outline" value={plots.length} label="Plots" />
+          <Stat icon="map-outline" value={activePlots.length} label="Plots" />
           <Stat icon="leaf-outline" value={totalTrees} label="Trees" />
           <Stat icon="cloud-upload-outline" value={pending} label="To upload" />
         </View>
 
         <Text style={styles.section}>My plots</Text>
 
-        {plots.length === 0 && (
+        {activePlots.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="map-outline" size={36} color={colors.muted} />
-            <Text style={styles.emptyText}>No plots saved on this phone yet. Register one in the Plots tab.</Text>
+            <Text style={styles.emptyText}>No plots yet. Register one in the Plots tab.</Text>
           </View>
         )}
 
-        {plots.map((p) => {
+        {activePlots.map((p) => {
           const scan = latest[p.plot_id.toLowerCase()];
           return (
             <Pressable key={p.plot_id} style={styles.card} onPress={() => setOpenPlot(p.plot_id)}>
@@ -208,7 +216,6 @@ function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; va
 
 const styles = StyleSheet.create({
   greeting: { fontSize: 24, fontWeight: "700", color: colors.primaryDark, flex: 1 },
-  title: { fontSize: 24, fontWeight: "700", color: colors.primaryDark },
   sub: { color: colors.muted, marginTop: spacing.xs },
   dot: {
     position: "absolute", top: -6, right: -8, minWidth: 18, height: 18, borderRadius: 9,

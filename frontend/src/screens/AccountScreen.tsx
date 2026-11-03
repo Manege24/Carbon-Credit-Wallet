@@ -4,11 +4,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { clearToken } from "../storage/tokenStore";
+import { clearToken, getRefreshToken } from "../storage/tokenStore";
 import { fetchProfile, Profile } from "../api/profile";
 import { syncAll } from "../api/sync";
 import { countPending, getCache, setCache, getLastSync, clearLocalData } from "../storage/localDb";
 import { colors, spacing, radius, shadow } from "../theme";
+import { API_URL } from "../config";
 
 type Props = { onLogout: () => void };
 
@@ -58,6 +59,14 @@ export default function AccountScreen({ onLogout }: Props) {
     }
     const left = await countPending();
     const finish = async () => {
+      const refresh = await getRefreshToken();
+      if (refresh) {
+        fetch(`${API_URL}/auth/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refresh }),
+        }).catch(() => {});
+      }
       await clearToken();
       await clearLocalData();
       onLogout();

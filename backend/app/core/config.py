@@ -7,8 +7,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg2://carbon:carbon@localhost:5432/carbon_wallet"
     jwt_secret_key: str = "change-me-in-.env"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 60
+    jwt_expire_minutes: int = 15
     expose_api_docs: bool = True
+    refresh_expire_days: int = 30
 
     # --- Sprint 3: satellite imagery + NDVI verification ---
     imagery_provider: str = "stub"          # "stub" (development) or "copernicus" (real imagery)

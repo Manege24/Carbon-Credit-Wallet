@@ -4,6 +4,7 @@ export type LoginResponse = {
   access_token: string;
   token_type: string;
   role?: string;
+  refresh_token?: string | null;
 };
 
 export async function login(username: string, password: string): Promise<LoginResponse> {

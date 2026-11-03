@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
@@ -8,6 +10,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.core.config import settings
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -59,3 +62,12 @@ def require_role(*allowed_roles: Role):
             )
         return payload
     return dependency
+
+def new_refresh_token() -> tuple[str, str]:
+    """Returns (plain_token, sha256_hash). Only the hash is stored."""
+    plain = secrets.token_urlsafe(48)
+    return plain, hash_refresh_token(plain)
+
+
+def hash_refresh_token(plain: str) -> str:
+    return hashlib.sha256(plain.encode()).hexdigest()

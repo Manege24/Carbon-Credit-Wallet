@@ -5,9 +5,9 @@ import { saveBatchLocally } from "../storage/localDb";
 import { syncAll } from "../api/sync";
 import { colors, spacing, radius, shadow } from "../theme";
 
-type Props = { plotId: string; onSaved?: () => void };
+type Props = { plotId: string; onSaved?: () => void; onDone?: () => void };
 
-export default function BatchForm({ plotId, onSaved }: Props) {
+export default function BatchForm({ plotId, onSaved, onDone }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const [count, setCount] = useState("");
   const [species, setSpecies] = useState("");
@@ -47,6 +47,7 @@ export default function BatchForm({ plotId, onSaved }: Props) {
       setCount("");
       setSpecies("");
       onSaved?.();
+      setTimeout(() => onDone?.(), 2500);
     } catch (e: any) {
       setIsError(true);
       setMessage(e?.message ?? "Something went wrong");
@@ -66,7 +67,13 @@ export default function BatchForm({ plotId, onSaved }: Props) {
       <TextInput style={styles.input} keyboardType="numeric" value={count} onChangeText={setCount} />
 
       <Text style={styles.label}>Species</Text>
-      <TextInput style={styles.input} value={species} onChangeText={setSpecies} placeholder="e.g. Grevillea robusta" placeholderTextColor={colors.muted} />
+      <TextInput
+        style={styles.input}
+        value={species}
+        onChangeText={setSpecies}
+        placeholder="e.g. Grevillea robusta"
+        placeholderTextColor={colors.muted}
+      />
 
       <Text style={styles.label}>Date planted (YYYY-MM-DD)</Text>
       <TextInput style={styles.input} value={date} onChangeText={setDate} autoCapitalize="none" />

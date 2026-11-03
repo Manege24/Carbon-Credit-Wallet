@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import TokenPayload, require_role
 from app.models.carbon_token import CarbonToken
-from app.models.enums import TokenStatus
+from app.models.enums import PlotStatus, TokenStatus
 from app.models.farmer import Farmer
 from app.models.ndvi_scan import NDVIScan
 from app.models.tree_batch import TreeBatch
@@ -37,12 +37,25 @@ def record_tree_batch(plot_id: uuid.UUID, payload: TreeBatchRequest, db: Session
     plot = db.get(TreePlot, plot_id)
     if not plot or str(plot.farmer_id) != current.sub:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plot not found")
+    if plot.status == PlotStatus.archived:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Plot is archived")
     batch = TreeBatch(batch_id=uuid.uuid4(), plot_id=plot_id, tree_count=payload.tree_count,
                        species_type=payload.species_type, date_planted=payload.date_planted)
     db.add(batch)
     db.commit()
     db.refresh(batch)
     return batch
+
+
+@router.patch("/plots/{plot_id}/archive")
+def archive_plot(plot_id: uuid.UUID, db: Session = Depends(get_db),
+                 current: TokenPayload = Depends(require_role("FARMER"))):
+    plot = db.get(TreePlot, plot_id)
+    if not plot or str(plot.farmer_id) != current.sub:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plot not found")
+    plot.status = PlotStatus.archived
+    db.commit()
+    return {"plot_id": plot.plot_id, "status": plot.status.value}
 
 
 @router.get("/farmers/me")
@@ -58,6 +71,7 @@ def my_profile(db: Session = Depends(get_db),
         "county": farmer.county,
     }
 
+
 @router.get("/farmers/me/plots")
 def my_plots(db: Session = Depends(get_db),
              current: TokenPayload = Depends(require_role("FARMER"))):
@@ -71,6 +85,7 @@ def my_plots(db: Session = Depends(get_db),
             "centroid_lat": p.centroid_lat,
             "centroid_lng": p.centroid_lng,
             "radius_m": p.radius_m,
+            "status": p.status.value,
             "batches": [
                 {"tree_count": b.tree_count, "species_type": b.species_type,
                  "date_planted": b.date_planted}

@@ -1,11 +1,18 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import BatchForm from "./BatchForm";
-import { LocalPlot, listBatches, listPlots, getCache } from "../storage/localDb";
+import {
+  LocalPlot,
+  listBatches,
+  listPlots,
+  getCache,
+  setPlotArchivedLocally,
+} from "../storage/localDb";
 import { fetchHistory, ScanItem } from "../api/history";
+import { archivePlot } from "../api/plots";
 import { getFarmerId } from "../auth/jwt";
 import { colors, spacing, radius, shadow } from "../theme";
 
@@ -57,6 +64,37 @@ export default function PlotDetailScreen({ plotId, onBack }: Props) {
     }, [load])
   );
 
+  function confirmArchive() {
+    if (!plot) return;
+    if (!plot.synced) {
+      Alert.alert(
+        "Not uploaded yet",
+        "This plot has not reached the server. Connect to the internet, wait for it to upload, then archive it."
+      );
+      return;
+    }
+    Alert.alert(
+      "Archive this plot?",
+      "It will be hidden from your list and checked no more. Your credit history is kept. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Archive",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await archivePlot(plotId);
+              await setPlotArchivedLocally(plotId);
+              onBack();
+            } catch {
+              Alert.alert("Could not archive", "Check your connection and try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   const totalTrees = batches.reduce((n, b) => n + b.tree_count, 0);
 
   return (
@@ -72,8 +110,12 @@ export default function PlotDetailScreen({ plotId, onBack }: Props) {
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
         {plot && (
           <View style={styles.card}>
-            <Text style={styles.line}>{totalTrees} trees in {batches.length} batch{batches.length === 1 ? "" : "es"}</Text>
-            <Text style={styles.muted}>Radius {plot.radius} m · {plot.lat.toFixed(5)}, {plot.lng.toFixed(5)}</Text>
+            <Text style={styles.line}>
+              {totalTrees} trees in {batches.length} batch{batches.length === 1 ? "" : "es"}
+            </Text>
+            <Text style={styles.muted}>
+              Radius {plot.radius} m · {plot.lat.toFixed(5)}, {plot.lng.toFixed(5)}
+            </Text>
             <View style={[styles.pill, plot.synced ? styles.pillOk : styles.pillWait]}>
               <Text style={{ color: plot.synced ? colors.success : colors.accent, fontWeight: "700", fontSize: 12 }}>
                 {plot.synced ? "Uploaded" : "Waiting to upload"}
@@ -86,18 +128,25 @@ export default function PlotDetailScreen({ plotId, onBack }: Props) {
         {batches.length === 0 && <Text style={styles.muted}>No trees recorded yet.</Text>}
         {batches.map((b) => (
           <View key={b.id} style={styles.batch}>
-            <Text style={styles.line}>{b.tree_count} × {b.species_type}</Text>
+            <Text style={styles.line}>
+              {b.tree_count} × {b.species_type}
+            </Text>
             <Text style={styles.muted}>
-              Planted {b.date_planted}{b.synced ? "" : " · waiting to upload"}
+              Planted {b.date_planted}
+              {b.synced ? "" : " · waiting to upload"}
             </Text>
           </View>
         ))}
 
-        <Pressable style={styles.addBtn} onPress={() => setShowForm((v) => !v)}>
-          <Ionicons name={showForm ? "close" : "add"} size={20} color={colors.primary} />
-          <Text style={styles.addText}>{showForm ? "Close form" : "Add more trees"}</Text>
-        </Pressable>
-        {showForm && <BatchForm plotId={plotId} onSaved={load} />}
+        {!plot?.archived && (
+          <>
+            <Pressable style={styles.addBtn} onPress={() => setShowForm((v) => !v)}>
+              <Ionicons name={showForm ? "close" : "add"} size={20} color={colors.primary} />
+              <Text style={styles.addText}>{showForm ? "Close form" : "Add more trees"}</Text>
+            </Pressable>
+            {showForm && <BatchForm plotId={plotId} onSaved={load} />}
+          </>
+        )}
 
         <Text style={styles.section}>Satellite history</Text>
         {scans.length === 0 && <Text style={styles.muted}>No satellite check yet.</Text>}
@@ -106,22 +155,40 @@ export default function PlotDetailScreen({ plotId, onBack }: Props) {
             <View style={styles.row}>
               <Text style={styles.date}>{s.scan_date}</Text>
               <View style={styles.barBg}>
-                <View style={[styles.bar, {
-                  width: `${Math.max(0, Math.min(1, s.ndvi_value)) * 100}%`,
-                  backgroundColor: barColor(s.ndvi_value),
-                }]} />
+                <View
+                  style={[
+                    styles.bar,
+                    {
+                      width: `${Math.max(0, Math.min(1, s.ndvi_value)) * 100}%`,
+                      backgroundColor: barColor(s.ndvi_value),
+                    },
+                  ]}
+                />
               </View>
               <Text style={styles.value}>{s.ndvi_value.toFixed(2)}</Text>
             </View>
             <View style={styles.tagRow}>
               <View style={[styles.tag, { backgroundColor: OUTCOME[s.outcome].bg }]}>
-                <Text style={[styles.tagText, { color: OUTCOME[s.outcome].color }]}>{OUTCOME[s.outcome].label}</Text>
+                <Text style={[styles.tagText, { color: OUTCOME[s.outcome].color }]}>
+                  {OUTCOME[s.outcome].label}
+                </Text>
               </View>
-              {s.tokens_issued_kg > 0 && <Text style={{ color: colors.success, fontSize: 12 }}>+{s.tokens_issued_kg} kg</Text>}
-              {s.tokens_revoked_kg > 0 && <Text style={{ color: colors.error, fontSize: 12 }}>{s.tokens_revoked_kg} kg revoked</Text>}
+              {s.tokens_issued_kg > 0 && (
+                <Text style={{ color: colors.success, fontSize: 12 }}>+{s.tokens_issued_kg} kg</Text>
+              )}
+              {s.tokens_revoked_kg > 0 && (
+                <Text style={{ color: colors.error, fontSize: 12 }}>{s.tokens_revoked_kg} kg revoked</Text>
+              )}
             </View>
           </View>
         ))}
+
+        {plot && !plot.archived && (
+          <Pressable style={styles.archiveBtn} onPress={confirmArchive}>
+            <Ionicons name="archive-outline" size={18} color={colors.error} />
+            <Text style={styles.archiveText}>Archive this plot</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -152,4 +219,9 @@ const styles = StyleSheet.create({
   tagRow: { flexDirection: "row", gap: 8, marginTop: 4, alignItems: "center" },
   tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   tagText: { fontSize: 12, fontWeight: "700" },
+  archiveBtn: {
+    flexDirection: "row", gap: 8, justifyContent: "center", alignItems: "center",
+    borderWidth: 1.5, borderColor: colors.error, paddingVertical: 12, borderRadius: radius.md, marginTop: spacing.xl,
+  },
+  archiveText: { color: colors.error, fontWeight: "700" },
 });
