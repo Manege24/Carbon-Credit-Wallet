@@ -27,11 +27,18 @@ export function getDb() {
           value TEXT NOT NULL
         );
       `);
+      try {
+        await db.execAsync("ALTER TABLE local_plots ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;");
+      } catch {
+        // column already exists
+      }
       return db;
     })();
   }
   return dbPromise;
 }
+
+// ---------------------------------------------------------------- saving
 
 export async function savePlotLocally(p: { plot_id: string; lat: number; lng: number; radius: number }) {
   const db = await getDb();
@@ -50,6 +57,9 @@ export async function saveBatchLocally(b: {
     [b.plot_id, b.tree_count, b.species_type, b.date_planted]
   );
 }
+
+// ---------------------------------------------------------------- reading
+
 export async function countPending(): Promise<number> {
   const db = await getDb();
   const p = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM local_plots WHERE synced = 0");
@@ -63,6 +73,7 @@ export type LocalPlot = {
   lng: number;
   radius: number;
   synced: number;
+  archived: number;
   trees: number;
   batches: number;
 };
@@ -70,7 +81,7 @@ export type LocalPlot = {
 export async function listPlots(): Promise<LocalPlot[]> {
   const db = await getDb();
   return db.getAllAsync<LocalPlot>(
-    `SELECT p.plot_id, p.lat, p.lng, p.radius, p.synced,
+    `SELECT p.plot_id, p.lat, p.lng, p.radius, p.synced, p.archived,
             COALESCE(SUM(b.tree_count), 0) AS trees,
             COUNT(b.id) AS batches
      FROM local_plots p
@@ -79,6 +90,18 @@ export async function listPlots(): Promise<LocalPlot[]> {
      ORDER BY p.rowid DESC`
   );
 }
+
+export async function listBatches(plotId: string) {
+  const db = await getDb();
+  return db.getAllAsync<{
+    id: number; tree_count: number; species_type: string; date_planted: string; synced: number;
+  }>(
+    "SELECT id, tree_count, species_type, date_planted, synced FROM local_batches WHERE lower(plot_id) = ? ORDER BY id DESC",
+    [plotId.toLowerCase()]
+  );
+}
+
+// ---------------------------------------------------------------- key-value cache
 
 export async function setCache(key: string, value: unknown) {
   const db = await getDb();
@@ -94,6 +117,8 @@ export async function getCache<T>(key: string): Promise<T | null> {
 export async function getLastSync(): Promise<string | null> {
   return getCache<string>("last_sync");
 }
+
+// ---------------------------------------------------------------- ownership and cleanup
 
 export async function clearLocalData() {
   const db = await getDb();
@@ -112,22 +137,28 @@ export async function ensureOwner(farmerId: string): Promise<boolean> {
   return false;
 }
 
+// ---------------------------------------------------------------- server sync
+
 export async function mergeServerPlots(
   serverPlots: {
-    plot_id: string; centroid_lat: number; centroid_lng: number; radius_m: number;
+    plot_id: string; centroid_lat: number; centroid_lng: number; radius_m: number; status?: string;
     batches: { tree_count: number; species_type: string; date_planted: string }[];
   }[]
 ) {
   const db = await getDb();
   for (const p of serverPlots) {
     const id = p.plot_id.toLowerCase();
+    const archived = p.status === "archived" ? 1 : 0;
     const exists = await db.getFirstAsync<{ plot_id: string }>(
       "SELECT plot_id FROM local_plots WHERE lower(plot_id) = ?", [id]
     );
-    if (exists) continue; // keep the local copy, it may have unsent batches
+    if (exists) {
+      await db.runAsync("UPDATE local_plots SET archived = ? WHERE lower(plot_id) = ?", [archived, id]);
+      continue; // keep the local copy, it may have unsent batches
+    }
     await db.runAsync(
-      "INSERT INTO local_plots (plot_id, lat, lng, radius, synced) VALUES (?, ?, ?, ?, 1)",
-      [id, p.centroid_lat, p.centroid_lng, p.radius_m]
+      "INSERT INTO local_plots (plot_id, lat, lng, radius, synced, archived) VALUES (?, ?, ?, ?, 1, ?)",
+      [id, p.centroid_lat, p.centroid_lng, p.radius_m, archived]
     );
     for (const b of p.batches) {
       await db.runAsync(
@@ -138,12 +169,7 @@ export async function mergeServerPlots(
   }
 }
 
-export async function listBatches(plotId: string) {
+export async function setPlotArchivedLocally(plotId: string) {
   const db = await getDb();
-  return db.getAllAsync<{
-    id: number; tree_count: number; species_type: string; date_planted: string; synced: number;
-  }>(
-    "SELECT id, tree_count, species_type, date_planted, synced FROM local_batches WHERE lower(plot_id) = ? ORDER BY id DESC",
-    [plotId.toLowerCase()]
-  );
+  await db.runAsync("UPDATE local_plots SET archived = 1 WHERE lower(plot_id) = ?", [plotId.toLowerCase()]);
 }

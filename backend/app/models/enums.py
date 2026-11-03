@@ -10,6 +10,7 @@ class AccountStatus(str, enum.Enum):
 class PlotStatus(str, enum.Enum):
     active = "active"
     degraded = "degraded"
+    archived = "archived"
 
 
 class TokenStatus(str, enum.Enum):

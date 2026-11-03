@@ -22,3 +22,9 @@ export async function fetchMyPlots() {
   if (!res.ok) throw new Error(`Error ${res.status}`);
   return res.json();
 }
+
+export async function archivePlot(plotId: string) {
+  const res = await authFetch(`/plots/${plotId}/archive`, { method: "PATCH" });
+  if (!res.ok) throw new Error(`Error ${res.status}`);
+  return res.json();
+}
