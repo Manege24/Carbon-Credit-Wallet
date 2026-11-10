@@ -1,0 +1,6 @@
+android/
+backend/venv/
+backend/dev.db
+backend/*.db
+**/node_modules/
+**/.expo/

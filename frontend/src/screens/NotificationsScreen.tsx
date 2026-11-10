@@ -54,7 +54,7 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
         <Pressable onPress={onBack} style={styles.back} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={colors.primaryDark} />
           <Text style={styles.backText}>Back</Text>
@@ -62,7 +62,7 @@ export default function NotificationsScreen({ onBack }: { onBack: () => void }) 
         <View style={styles.titleRow}>
           <Text style={styles.title}>Notifications</Text>
           {notices.length > 0 && (
-            <Pressable onPress={clearAll} hitSlop={10} style={{ marginRight: 56 }}>
+            <Pressable onPress={clearAll} hitSlop={10}>
               <Text style={styles.clear}>Clear all</Text>
             </Pressable>
           )}

@@ -21,9 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
-        op.execute("ALTER TYPE plot_status ADD VALUE IF NOT EXISTS 'archived'")
-    # SQLite stores enums as text, so nothing to do there
+        with op.get_context().autocommit_block():
+            op.execute("ALTER TYPE plot_status ADD VALUE IF NOT EXISTS 'archived'")
 
 
 def downgrade() -> None:
-    pass  # removing an enum value is not supported; archived rows stay valid
+    pass

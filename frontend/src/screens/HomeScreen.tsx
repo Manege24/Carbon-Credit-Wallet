@@ -38,11 +38,9 @@ export default function HomeScreen() {
   const [name, setName] = useState<string>("");
 
   const load = useCallback(async () => {
-    // 1. local data first (works offline)
     setPlots(await listPlots());
     setPending(await countPending());
 
-    // 2. server data, with cached fallback
     try {
       const id = await getFarmerId();
       if (!id) throw new Error("no id");
@@ -122,17 +120,23 @@ export default function HomeScreen() {
 
   const activePlots = plots.filter((p) => !p.archived);
   const totalTrees = activePlots.reduce((n, p) => n + p.trees, 0);
+  const initial = (firstName(name) || "?").charAt(0).toUpperCase();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={styles.greeting}>
-            {greetingForNow()}
-            {name ? `, ${firstName(name)}` : ""}
-          </Text>
-          <Pressable onPress={() => setShowNotices(true)} hitSlop={10} style={{ marginRight: 56 }}>
-            <Ionicons name="notifications-outline" size={26} color={colors.primaryDark} />
+      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+        <View style={styles.header}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting} numberOfLines={1}>
+              {greetingForNow()}
+              {name ? `, ${firstName(name)}` : ""}
+            </Text>
+          </View>
+          <Pressable onPress={() => setShowNotices(true)} hitSlop={10} style={styles.bell}>
+            <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
             {unread > 0 && (
               <View style={styles.dot}>
                 <Text style={styles.dotText}>{unread > 9 ? "9+" : unread}</Text>
@@ -140,7 +144,6 @@ export default function HomeScreen() {
             )}
           </Pressable>
         </View>
-        <Text style={styles.sub}>Your plots and carbon credits at a glance.</Text>
         {offline && (
           <View style={styles.offline}>
             <Ionicons name="cloud-offline-outline" size={16} color={colors.accent} />
@@ -215,10 +218,19 @@ function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; va
 }
 
 const styles = StyleSheet.create({
-  greeting: { fontSize: 24, fontWeight: "700", color: colors.primaryDark, flex: 1 },
-  sub: { color: colors.muted, marginTop: spacing.xs },
+  header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarText: { color: colors.white, fontSize: 18, fontWeight: "700" },
+  greeting: { fontSize: 20, fontWeight: "700", color: colors.primaryDark },
+  bell: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface,
+    alignItems: "center", justifyContent: "center", ...shadow,
+  },
   dot: {
-    position: "absolute", top: -6, right: -8, minWidth: 18, height: 18, borderRadius: 9,
+    position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: colors.error, alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
   },
   dotText: { color: colors.white, fontSize: 11, fontWeight: "700" },

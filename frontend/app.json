@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Carbon Credit Wallet",
+    "slug": "carbon-credit-wallet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,9 +14,11 @@
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "package": "com.strathmore.carboncreditwallet"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.manege.carboncreditwallet"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -24,7 +26,13 @@
     "plugins": [
       "expo-secure-store",
       "expo-sqlite",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "064cc374-0ccd-4d2a-a395-1dc979f0af2a"
+      }
+    }
   }
 }
