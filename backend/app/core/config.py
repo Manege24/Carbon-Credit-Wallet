@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,8 +9,8 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-.env"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 15
-    expose_api_docs: bool = True
     refresh_expire_days: int = 30
+    expose_api_docs: bool = True
 
     # --- Sprint 3: satellite imagery + NDVI verification ---
     imagery_provider: str = "stub"          # "stub" (development) or "copernicus" (real imagery)
@@ -24,6 +25,15 @@ class Settings(BaseSettings):
     ndvi_cloud_cover_threshold_pct: float = 30.0    # scans cloudier than this are discarded
     ndvi_search_window_days: int = 14               # FR-07: two-week window for the least-cloudy tile
     tokens_cycles_per_year: int = 6                 # bi-monthly verification -> 6 cycles per year
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_database_url(cls, v: str) -> str:
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif v.startswith("postgresql://"):
+            v = v.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return v
 
 
 settings = Settings()
