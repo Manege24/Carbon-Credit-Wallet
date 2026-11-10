@@ -18,6 +18,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import { getFarmerId } from "./src/auth/jwt";
 import { ensureOwner } from "./src/storage/localDb";
 import { onSessionExpired } from "./src/auth/session";
+import { StatusBar } from "expo-status-bar";
 
 const Tab = createBottomTabNavigator();
 function Tabs({ onLogout }: { onLogout: () => void }) {
@@ -128,7 +129,9 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
+      <StatusBar style="dark" />
       <AppContent />
     </SafeAreaProvider>
   );
+
 }

@@ -5,10 +5,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getFarmerId } from "../auth/jwt";
 import { fetchHistory, ScanItem } from "../api/history";
-import { setCache, getCache } from "../storage/localDb";
+import { setCache, getCache, listPlots } from "../storage/localDb";
 import { colors, spacing, radius, shadow } from "../theme";
 
-type Group = { plotId: string; scans: ScanItem[] };
+type Group = { plotId: string; scans: ScanItem[]; archived: boolean };
 
 const OUTCOME = {
   verified: { label: "Verified", color: colors.success, bg: colors.primarySoft },
@@ -17,16 +17,22 @@ const OUTCOME = {
   pending: { label: "Pending", color: colors.muted, bg: "#ECE7DA" },
 } as const;
 
-function groupByPlot(items: ScanItem[]): Group[] {
-  const map = new Map<string, ScanItem[]>();
-  for (const it of items) {
-    if (!map.has(it.plot_id)) map.set(it.plot_id, []);
-    map.get(it.plot_id)!.push(it);
+async function buildGroups(items: ScanItem[]): Promise<Group[]> {
+  const plots = await listPlots();
+  const map = new Map<string, Group>();
+
+  for (const p of plots) {
+    map.set(p.plot_id.toLowerCase(), { plotId: p.plot_id, scans: [], archived: !!p.archived });
   }
-  return Array.from(map.entries()).map(([plotId, scans]) => ({
-    plotId,
-    scans: scans.sort((a, b) => b.scan_date.localeCompare(a.scan_date)),
-  }));
+  for (const s of items) {
+    const key = s.plot_id.toLowerCase();
+    if (!map.has(key)) map.set(key, { plotId: s.plot_id, scans: [], archived: false });
+    map.get(key)!.scans.push(s);
+  }
+
+  return Array.from(map.values())
+    .filter((g) => !(g.archived && g.scans.length === 0))
+    .map((g) => ({ ...g, scans: g.scans.sort((a, b) => b.scan_date.localeCompare(a.scan_date)) }));
 }
 
 function barColor(v: number) {
@@ -50,15 +56,15 @@ export default function HistoryScreen() {
       if (!id) throw new Error("Not logged in. Log out and log in again.");
       const items = await fetchHistory(id);
       await setCache("history", items);
-      setGroups(groupByPlot(items));
+      setGroups(await buildGroups(items));
       setOffline(false);
     } catch (e: any) {
       const cached = await getCache<ScanItem[]>("history");
       if (cached) {
-        setGroups(groupByPlot(cached));
+        setGroups(await buildGroups(cached));
         setOffline(true);
       } else {
-        setGroups([]);
+        setGroups(await buildGroups([]));
         setError(
           e?.message === "Network request failed"
             ? "Cannot reach the server. Check your connection."
@@ -78,7 +84,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
         <Text style={styles.title}>Satellite checks</Text>
         <Text style={styles.sub}>NDVI shows how green your trees look from space. Higher is healthier.</Text>
         {offline && (
@@ -104,7 +110,7 @@ export default function HistoryScreen() {
         {!loading && !error && groups.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="planet-outline" size={40} color={colors.muted} />
-            <Text style={styles.emptyText}>No satellite checks yet.</Text>
+            <Text style={styles.emptyText}>No plots yet.</Text>
           </View>
         )}
 
@@ -113,7 +119,17 @@ export default function HistoryScreen() {
             <View style={styles.cardHeader}>
               <Ionicons name="location" size={18} color={colors.primary} />
               <Text style={styles.plot}>Plot ...{g.plotId.slice(-4)}</Text>
+              {g.archived && <Text style={styles.archived}>Archived</Text>}
             </View>
+
+            {g.scans.length === 0 && (
+              <View style={styles.noScan}>
+                <Ionicons name="time-outline" size={16} color={colors.muted} />
+                <Text style={styles.noScanText}>
+                  No satellite check yet. The first check happens in the next cycle.
+                </Text>
+              </View>
+            )}
 
             {g.scans.map((s) => (
               <View key={s.scan_date} style={{ marginTop: spacing.sm }}>
@@ -176,6 +192,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.md, ...shadow },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.xs },
   plot: { fontWeight: "700", color: colors.primaryDark },
+  archived: { marginLeft: "auto", color: colors.muted, fontSize: 12, fontWeight: "600" },
+  noScan: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.xs },
+  noScanText: { color: colors.muted, flex: 1 },
   row: { flexDirection: "row", alignItems: "center" },
   date: { width: 92, color: colors.text },
   barBg: { flex: 1, height: 10, backgroundColor: colors.primarySoft, borderRadius: 5, marginHorizontal: 8 },
